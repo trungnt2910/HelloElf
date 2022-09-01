@@ -21,6 +21,10 @@ struct SavedRegisters
 	uint64_t rdx;
 	uint64_t rcx;
 	uint64_t rbx;
+
+	uint64_t flags;
+
+	// Pushed before trampoline starts
 	uint64_t rax;
 };
 

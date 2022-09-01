@@ -4,55 +4,74 @@ extrn dbt_syscall : proc
 PUBLIC syscall_trampoline
 
 syscall_trampoline:
-; At the start of this function, rax is already at the top of the stack.
-	sub rsp, 120
-	mov qword ptr[rsp + 112], rbx
-	mov qword ptr[rsp + 104], rcx
-	mov qword ptr[rsp + 96],  rdx
-	mov qword ptr[rsp + 88],  rbp
-	mov qword ptr[rsp + 80],  rsp
-	mov qword ptr[rsp + 72],  rsi
-	mov qword ptr[rsp + 64],  rdi
-	mov qword ptr[rsp + 56],  r8
-	mov qword ptr[rsp + 48],  r9
-	mov qword ptr[rsp + 40],  r10
-	mov qword ptr[rsp + 32],  r11
-	mov qword ptr[rsp + 24],  r12
-	mov qword ptr[rsp + 16],  r13
-	mov qword ptr[rsp + 8],   r14
-	mov qword ptr[rsp + 0],   r15
+; Save the flags as early as possible. The sub instruction below already modifies EFLAGS.
+	lahf
+	push rax
+
+; At the start of this function, rax is already at the top of the stack
+	push rbx
+	push rcx
+	push rdx
+	push rbp
+; rsp not saved.
+	push 0
+	push rsi
+	push rdi
+	push r8
+	push r9
+	push r10
+	push r11
+	push r12
+	push r13
+	push r14
+	push r15
 
 ; dbt_syscall first argument
 	mov rcx, rsp
-; dbt_syscall second argument
-	mov rdx, qword ptr[rsp + 128]
+; dbt_syscall second argument. Go up 8 more bytes because of the saved flags.
+	mov rdx, qword ptr[rsp + 128 + 8]
 
+; align the stack to 16-byte boundary
+	mov rbp, rsp
+	and rsp, 0FFFFFFFFFFFFFFF0h
+; add some shadow space
 	sub rsp, 32
 	call dbt_syscall
-	add rsp, 32
+; restore
+	mov rsp, rbp
 
 ; dbt_syscall should return the address to continue.
 	mov r11, rax
 
-	mov r15, qword ptr[rsp + 0]
-	mov r14, qword ptr[rsp + 8]
-	mov r13, qword ptr[rsp + 16]
-	mov r12, qword ptr[rsp + 24]
-; r11 is intentionally skipped.
-	mov r10, qword ptr[rsp + 40]
-	mov r9,  qword ptr[rsp + 48]
-	mov r8,  qword ptr[rsp + 56]
-	mov rdi, qword ptr[rsp + 64]
-	mov rsi, qword ptr[rsp + 72]
-; don't restore rsp here
-	mov rbp, qword ptr[rsp + 88]
-	mov rdx, qword ptr[rsp + 96]
-	mov rcx, qword ptr[rsp + 104]
-	mov rbx, qword ptr[rsp + 112]
-	mov rax, qword ptr[rsp + 120]
+	pop r15
+	pop r14
+	pop r13
+	pop r12
+; don't restore r11
+	pop rax
+	pop r10
+	pop r9
+	pop r8
+	pop rdi
+	pop rsi
+; don't restore rsp
+	pop rax
+	pop rbp
+	pop rdx
+	pop rcx
+	pop rbx
 
-; Add 8 to remove the continue address from stack.
-	add rsp, 128 + 8
+; restore flags
+	pop rax
+	sahf
+
+; this is the real rax value
+	pop rax
+
+; exchange rax with the return address,
+	xchg rax, [rsp]
+; and then get rid of it. rax should now have its desired value.
+	pop rax
 
 	jmp r11
 end

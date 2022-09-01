@@ -84,13 +84,12 @@ size_t dbt_emit_trampoline(void* newInstructionAddress, void* jumpTarget, void* 
 
 	newInstruction.machine_mode = ZYDIS_MACHINE_MODE_LONG_64;
 
-	// sub rsp, 8
-	newInstruction.mnemonic = ZYDIS_MNEMONIC_SUB;
-	newInstruction.operand_count = 2;
+	// We used to use "sub rsp, 8" but this affects EFLAGS.
+	// push rax
+	newInstruction.mnemonic = ZYDIS_MNEMONIC_PUSH;
+	newInstruction.operand_count = 1;
 	newInstruction.operands[0].type = ZYDIS_OPERAND_TYPE_REGISTER;
-	newInstruction.operands[0].reg.value = ZYDIS_REGISTER_RSP;
-	newInstruction.operands[1].type = ZYDIS_OPERAND_TYPE_IMMEDIATE;
-	newInstruction.operands[1].imm.u = sizeof(void*);
+	newInstruction.operands[0].reg.value = ZYDIS_REGISTER_RAX;
 
 	if (!ZYAN_SUCCESS(ZydisEncoderEncodeInstruction(
 		&newInstruction, currentNewInstructionAddress,
